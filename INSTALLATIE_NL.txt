@@ -1,0 +1,40 @@
+THERMIA GENESIS MODBUS - INSTALLATIE 0.1.22
+
+De aangepaste plugin vervangt alleen de bestanden in:
+/config/custom_components/thermia_genesis_modbus/
+File editor kan dezelfde map tonen als:
+/homeassistant/custom_components/thermia_genesis_modbus/
+
+Gebruik de map custom_components/thermia_genesis_modbus uit de ZIP.
+Zet niet de hele uitgepakte ZIP of een tweede gelijknamige map daarin.
+Bewaar eerst een volledige HA-back-up en een kopie van de oude pluginbestanden.
+Laat thermia, thermiagenesis en thermia_calibra voorlopig ongemoeid.
+
+NIEUWE CONFIGURATIE
+Een nieuwe integratievermelding begint in 0.1.22 automatisch op:
+Control Ownership > External Control / EMHASS.
+De verbindingscontrole leest alleen de bedrijfsstatus. Er wordt geen eigen
+thermostaatprogramma gestart. De twee eigen thermostaten zijn in deze stand
+onbeschikbaar; gebruik de native schakelaars en losse temperatuurinstellingen.
+
+BESTAANDE CONFIGURATIE
+Een update bewaart de gekozen stand. Een oude configuratie zonder deze voorkeur
+behoudt de interne standaard. Controleer Configure voordat je bedieningen gebruikt.
+Een eerder actief tijdelijk programma kan opgeslagen instellingen herstellen.
+
+GEEN GARANTIE VAN READ-ONLY BEDRIJF
+Eigen bedieningsopdrachten kunnen nog steeds de pomp wijzigen. Optionele
+vochtbeveiliging en een gekozen externe buitenfeed kunnen ook schrijven.
+Wijs elke instelling aan precies een schrijvende regeling toe.
+
+VOLGORDE VOOR JOUW OVERSTAP
+Eerst GitHub/testrelease voorbereiden, daarna installeren en controleren.
+Vervolgens metingen vergelijken en bedieningen afzonderlijk testen; vermijd
+tegenstrijdige opdrachten van de oude en nieuwe regeling.
+Pas dan automatiseringen EN helpers onderdeel voor onderdeel omzetten.
+De oudere conceptbestanden met vervang_-namen zijn niet klaar voor activering.
+
+De handleiding van 0.1.21 blijft geldig voor de functies. De enige nieuwe
+functionele wijziging in 0.1.22 is de externe standaard bij een nieuwe vermelding.
+Deze release lost zonne-inval of thermische nawerking niet vanzelf op.
+Er is nog geen praktijktest op jouw HA of warmtepomp uitgevoerd.

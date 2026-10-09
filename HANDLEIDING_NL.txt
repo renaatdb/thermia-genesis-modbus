@@ -1,0 +1,217 @@
+THERMIA GENESIS MODBUS
+Nederlandstalige handleiding - versie 0.1.21
+
+1. EERST HET OVERZICHT
+
+Voor jouw installatie blijft EMHASS de planner. Je bestaande automatiseringen beslissen wanneer verwarming, koeling en boiler mogen werken. De Thermia-integratie leest de pomp uit en voert hun opdrachten uit.
+
+DE TAAKVERDELING
+EMHASS > jouw automatiseringen > Thermia-integratie > warmtepomp. Thermia behoudt zijn eigen opstartvertragingen, prioriteiten en toestelbeveiligingen.
+
+DRIE VERSCHILLENDE SOORTEN BEDIENING
+
+Bediening | Wat gebeurt er?
+Schakelaars A1 | Geven of trekken toestemming in. Aan betekent dat een functie mag werken; het bewijst geen werkelijk bedrijf.
+Losse temperatuurinstellingen | Wijzigen een temperatuur zonder aan/uit-toestemming te veranderen. Deze zijn toegevoegd voor jouw EMHASS-regeling.
+Thermostaten en presets | Starten een eigen regeling in de integratie. De ruimtethermostaat kan toestemmingen blijven aansturen. Niet gelijktijdig laten beslissen met jouw EMHASS-regeling.
+
+DE DRIE LOSSE TEMPERATUURINSTELLINGEN
+
+Naam op de apparaatpagina | Gebruik in jouw regeling
+B1.07 Heating - Native Target | Woninginstelling voorbereiden en teruglezing controleren. Daarna pas A1.01 Heating aan. Bereik 10-35 graden C, stap 0,01.
+B2.06 Hot Water - Native START | Alleen de boiler-startgrens wijzigen. Bijvoorbeeld 45 naar 55 en later terug naar 45. STOP blijft 58.
+B2.07 Hot Water - Native STOP | Alleen de boiler-stopgrens wijzigen. START blijft staan. START moet altijd lager zijn dan STOP.
+
+START en STOP gebruiken hele graden en respecteren de maxima in Configure. Een verkeerde combinatie wordt geweigerd: de andere grens wordt niet automatisch verplaatst. De woninginstelling is een Thermia-comfortinstelling, geen kamermeting; zonder native binnenvoeler kan zij de verwarmingscurve verschuiven.
+
+BELANGRIJK BIJ EMHASS
+Kies in Configure pagina 1: Control Ownership > External Control / EMHASS. Beide eigen thermostaten worden dan onbeschikbaar; native bediening en metingen blijven werken. Dit is niet hetzelfde als thermostaat Uit: die trekt in interne besturing verwarming EN koeling in. Zie hoofdstuk 8 voor de nieuwe stand.
+
+Deze handleiding beschrijft de code van beta 0.1.21. De functies zijn met simulaties getest; de overstap op jouw HA en warmtepomp moet nog worden gecontroleerd. Met het lezen van deze handleiding verandert er niets op HA.
+
+2. ALLE SCHAKELAARS A1
+
+Je vindt deze bediening onder Configuration/Configuratie van het Thermia-apparaat. De A1-nummers houden de schakelaars bij elkaar. Een aangepaste naam in HA kan de zichtbare naam veranderen.
+
+Schakelaar | Betekenis en aandachtspunt
+A1.01 Heating | Native toestemming voor woningverwarming. Uit verandert niet zelfstandig de koel- of SWW-toestemming. Een bewuste opdracht beeindigt wel een eigen verwarmingspreset en herstelt diens tijdelijke instellingen.
+A1.02 Electric Auxiliary Heater Allowed | Laat automatische elektrische bijverwarming toe. Zet het elektrische element niet verplicht aan. De toestemming kan ook invloed hebben op tapwaterproductie.
+A1.03 Hot Water Enabled | In externe besturing: wijzigt alleen SWW-toestemming en toont de native terugmelding. In interne besturing: Uit beeindigt een SWW-preset en herstelt diens normale instellingen; de schakelaar toont de gevraagde modus. Enabled (Readback) toont apart de fysieke toestemming.
+A1.04 Thermia Boost | Bedient alleen de native Boost-vlag en verandert zelf geen START/STOP-temperaturen. De pomp kan de vlag na een cyclus wissen. De werking is modelafhankelijk; beschikbaarheid vereist een geldige teruglezing.
+A1.05 Anti-Legionella Programme | Bedient de native programma-toestemming. Aan bewijst niet dat een cyclus loopt of voltooid is. Gebruik de afzonderlijke bedrijfsstatus voor de activiteit. Ook deze bediening is modelafhankelijk.
+A1.06 Cooling (Passive) | Native toestemming voor passieve koeling. Aan bewijst geen koelproductie. Een bewuste opdracht beeindigt de eigen ruimtepreset. Verwarming en koeling kunnen via de native schakelaars beide toegestaan zijn.
+A1.07 Humidity Protection In Normal Cooling | Schakelt de vochtbeveiliging van de integratie in. Dit is een opgeslagen voorkeur, geen native pompregister. Vereist een gekozen vochtigheidssensor en bruikbare binnentemperatuur.
+
+VOOR JOUW EMHASS-REGELING
+
+De voornaamste uitvoerende schakelaars zijn A1.01 en A1.06. Je automatiseringen controleren zelf dat verwarming, koeling en boilerprioriteit elkaar niet tegenwerken. De schakelaars voegen geen nieuw EMHASS-schema toe.
+
+Boost is niet hetzelfde als de preset Excess Energy. Boost is een native vlag; Excess Energy is een tijdelijke regeling met temperatuurgrenzen, bewaking en een herstelklok. Tijdens die preset kan de integratie Boost opnieuw vragen. Verlaat daarom de preset via Normal of Off voordat je haar Boost-aanvraag wilt beeindigen.
+
+TOESTEMMING, OPDRACHT EN WERKELIJK BEDRIJF
+Schakelaar Aan = toestemming. Een bevestigde temperatuur = instelling teruggelezen. Een bedrijfsstatus Aan = door de controller gemelde activiteit/vraag. Voor jouw controle op echte stilstand blijft ook de Shelly-vermogensmeting nodig; een status alleen is geen stroommeting.
+
+3. RUIMTETHERMOSTAAT EN VERWARMING
+
+Deze thermostaat werkt alleen in interne besturing. In External Control / EMHASS is zij onbeschikbaar en zijn haar opdrachten geblokkeerd. Hieronder staat het interne gedrag; jouw EMHASS-aanpak gebruikt de native schakelaars en losse woninginstelling.
+
+Modus | Gedrag in Normal
+Off / Uit | Trekt zowel verwarming als koeling in. Verandert de afzonderlijke SWW-toestemming niet. Beeindigt de ruimtepreset.
+Heat / Verwarmen | Geeft verwarming toestemming en schakelt koeling uit. Kopieert het doel naar de Thermia-comfortinstelling. De externe kamertemperatuur schakelt Normal Heat niet vanzelf uit.
+Cool / Koelen | Geeft koeling toestemming en schakelt verwarming uit. In Normal beslist Thermia over daadwerkelijk bedrijf; actieve vochtbeveiliging kan koeling pauzeren.
+Auto / Heat-Cool | Gebruikt een gemeten binnentemperatuur en twee doelen: ondergrens voor verwarming, bovengrens voor koeling. Daartussen kan beide uit staan. De HA-modus heet technisch heat_cool.
+
+Preset | Wat verandert er tijdelijk?
+Normal | Gebruikt de normale doelinstellingen en het gekozen modusgedrag.
+Low Mode | Verlaagt het normale verwarmingsdoel. In Heat/Cool blijft het normale koeldoel staan. Niet beschikbaar als verwarming uit staat of in alleen Cool.
+Vacation | Gebruikt het ingestelde vakantiedoel voor verwarming. Bij koeling kan een aparte verlaging van het normale koeldoel gelden.
+Excess Energy | Vraagt extra verwarming tot een binnenplafond, verhoogt Heat Stop tijdelijk en gebruikt de gewone maximale verwarmingsaanvoer als laadinstelling. Koeling is tijdens het laden uit. Vereist een geldige binnentemperatuur.
+
+Instelling B1 | Functie / standaard bij nieuwe configuratie
+B1.01 Low Mode Reduction | Verlaging verwarmingsdoel; standaard 2 graden.
+B1.02 Vacation Target | Verwarmingsdoel voor Vacation; standaard 17 graden C.
+B1.03 Excess Energy Ceiling | Binnenplafond voor extra laden; standaard 23 graden C.
+B1.04 Excess Energy Heat Stop Increase | Tijdelijke verhoging van Heat Stop; standaard 2 graden.
+B1.05 Excess Energy Duration | Maximale laadduur; standaard 12 uur.
+B1.06 Heat Stop | Native buitentemperatuurgrens voor het stoppen van verwarming.
+B1.07 Native Target | Losse woninginstelling voor externe automatiseringen; schakelt niets in.
+
+De thermostaatdoelen gebruiken hele graden. De nieuwe losse woninginstelling accepteert 0,01 graad. Auto start standaard met 0,3 graad verschil buiten de doelgrens. Bij Excess Energy pauzeert de ruimteverwarming op het plafond en kan zij onder het plafond minus die marge hervatten.
+
+Een gewijzigde thermostaattemperatuur beeindigt een actieve preset en past het normale doel toe. De aparte Excess Energy Ceiling kan het plafond wijzigen terwijl de preset actief blijft. Een wijziging van Heat Stop beeindigt extra laden voordat de nieuwe native grens wordt toegepast.
+
+4. BOILER / SANITAIR WARM WATER
+
+SWW, tapwater en boiler betekenen hier dezelfde warmwaterfunctie. De boilerthermostaat en presets hieronder werken alleen in interne besturing. In externe besturing blijven de losse START/STOP en SWW-schakelaar bruikbaar. Tanktemperatuur is een meting; START/STOP zijn instellingen.
+
+Modus / preset | Betekenis
+Auto met Normal | Laat Thermia normaal warm water maken met de opgeslagen START/STOP-combinatie.
+Off / Uit | Trekt gewone SWW-toestemming in en beeindigt een actieve SWW-preset. Herstelt diens normale temperaturen. Wijzigt niet zelfstandig de anti-legionella-programma-instelling.
+Excess Energy | Vraagt native Boost en gebruikt tijdelijk STOP 60 graden C. START volgt de herstartmarge en de ingestelde START-limiet. Met standaardlimieten wordt dit 55/60.
+Low Mode | Gebruikt tijdelijk een lager normaal bereik, standaard 35/40 graden C, met Boost uit. Het water koelt natuurlijk af; er wordt geen actieve tankkoeling gevraagd. Heeft zelf geen dagschema.
+
+Instelling B2 | Functie / standaard bij nieuwe configuratie
+B2.01 Excess Energy Restart Gap | Gewenste herstartmarge; standaard 2 graden. Door START-maximaal 55 is de effectieve marge bij STOP 60 meestal 5 graden.
+B2.02 Excess Energy Duration | Maximale extra laadduur; standaard 6 uur.
+B2.03 Low Mode Start | START voor Low Mode; standaard 35 graden C.
+B2.04 Low Mode Stop | STOP voor Low Mode; standaard 40 graden C.
+B2.05 Low Mode Duration | Terugkeer naar Normal; standaard na 24 uur.
+B2.06 Native START | Wijzigt alleen de native START-grens, in hele graden.
+B2.07 Native STOP | Wijzigt alleen de native STOP-grens, in hele graden.
+
+JOUW EMHASS-BOILERREGELING
+Normaal 45/58. Een extra lading mag START tijdelijk verhogen tot maximaal 55, terwijl STOP 58 blijft. Na de cyclus zet jouw bestaande automatisering START terug op 45. De nieuwe losse instelling schakelt zelf geen Boost, SWW of verwarming in.
+
+De losse START/STOP-bediening weigert strijdige grenzen en een actieve SWW-preset/Boost. De boilerthermostaat heeft ander gedrag: een temperatuurwijziging keert terug naar Normal en kan de andere grens aanpassen om een botsende combinatie te herstellen. Gebruik voor jouw aparte EMHASS-opdrachten dus de losse nummers.
+
+De boilerthermostaat toont de gewogen tanktemperatuur, met de bovenste sensor als terugval. Boven-, onder- en gewogen tankmetingen zijn ook afzonderlijk beschikbaar. Voor eigen Excess Energy bewaakt de integratie de heetste geldige boven-/gewogen meting: op 60 graden pauzeert zij Boost en SWW-aanvraag. Dit is een softwaregrens voor die preset, geen beschrijving van alle native programma's.
+
+5. KOELING, VOCHT EN EXTERNE SENSOREN
+
+De native koeltoestemming en de actieve koelstatus zijn aparte gegevens. Een watertemperatuurdoel voor koeling is ook iets anders dan het kamerdoel waarmee jouw automatiseringen werken.
+
+DE BESTAANDE KOELAUTOMATISERINGEN BLIJVEN BESLISSEN
+
+Automatisering | Voorwaarden / wachttijd in jouw aangeleverde regeling
+Passieve koeling aan | Twee minuten koelvraag boven 10 W, kamer boven 22,8 graden, geen warmtevraag vanaf 100 W, en vrije verwarming/SWW/legionella/prioriteit.
+Uit: geen koelvraag | Vijf minuten ononderbroken geldige koelvraag van 0 tot onder 5 W.
+Uit: koele woning | Vijftien minuten ononderbroken onder 22,5 graden.
+Uit: warmtevraag | Twee minuten warmtevraag boven 100 W of verwarmingsschakelaar aan.
+
+Deze voorwaarden komen uit jouw automatiseringen en worden niet vanzelf onderdeel van de integratie. Tapwater en anti-legionella blokkeren daar een nieuwe koelstart; de boilerregeling kan daarnaast bij eigen prioriteit koeltoestemming intrekken. Alleen namen vervangen is nog geen afgeronde migratie.
+
+Instelling B3 | Betekenis / standaard
+B3.01 Vacation Reduction | Verlaging van het normale koeldoel in Vacation; standaard 0 graden.
+B3.02 Normal Humidity Limit | Bij actieve vochtbeveiliging pauze vanaf deze relatieve vochtigheid; standaard 80%. Hervatten bij 2 procentpunten lager.
+B3.03 Vacation Humidity Limit | Aparte Vacation-grens; standaard 65%. Met een gekozen vochtsensor geldt deze ook als de Normal-schakelaar uit staat.
+B3.04 Dew Point Margin | Koelwaterdoel minimaal deze marge boven het berekende dauwpunt; standaard 2 graden. De oorspronkelijke watertemperatuur blijft een ondergrens.
+
+De vochtbeveiliging vraagt geldige temperatuur- en vochtmetingen en bevestigde teruglezing van het koelwaterdoel. Ontbrekende vereiste gegevens kunnen koeling pauzeren. De beveiliging meet niet de werkelijke vloertemperatuur en ontvochtigt de lucht niet.
+
+EXTERNE BINNEN-, BUITEN- EN VOCHTIGHEIDSSENSOR
+
+In Configure pagina 1 kies je de sensoren. Binnenmetingen blijven invoer voor HA-regeling; ze worden niet als native kamermeting naar Thermia geschreven. Een gekozen buitenmeting wordt wel via BMS aan de pomp aangeboden. Laat daarvoor maar een regeling eigenaar zijn.
+
+Standaard is de maximale sensorouderdom 0: een geldige meting verloopt niet alleen door haar leeftijd. Unknown/unavailable/ongeldige waarden tellen niet als bruikbaar. Bij een gekozen positieve ouderdom geldt wel een tijdslimiet. Waar mogelijk valt de integratie terug op de Thermia-voeler; Auto vereist een echte binnenmeting. De bronstatussensoren leggen uit wat gebruikt wordt.
+
+6. CONFIGURE EN DE MEETGEGEVENS
+
+Configure pagina 1 bevat Control Ownership (zie hoofdstuk 8), sensoren en grenzen; pagina 2 bevat native verwarmings-/koelinstellingen en de Smart Grid-keuze. De verbindingsinstellingen bepalen hoe HA de pomp bereikt.
+
+Instelling | Wat doet zij?
+IP-adres, poort, unit-ID | Verbinding met de Modbus-controller. Meestal poort 502 en unit-ID 1; gebruik jouw bestaande waarden.
+Heat-pump model | Alleen de modelnaam op de apparaatpagina. Selecteert geen nieuwe registerkaart of hardwarefunctie.
+Maximum START / STOP | Grenzen voor nieuwe softwareopdrachten, standaard 55/60 graden C. Dit zijn niet de gewone 45/58-temperaturen van jouw boilerregeling.
+Room restart margin | Startmarge voor de eigen Auto-/laadregeling; standaard 0,3 graad. Wijzigt niet de wachttijden uit jouw EMHASS-automatiseringen.
+Heat curve points 1-7 | Zeven native aanvoerdoelen bij verschillende buitentemperaturen. Softwarebereik 5-65 graden C; dit is niet dezelfde bediening als de enkele Heat curve-selectie in een Thermia-app.
+Supply line minimum / maximum | Native onder- en bovengrens voor verwarmingswater. Softwarebereik 5-65 graden C. De ondergrens moet onder of op de bovengrens blijven.
+Desired Cooling Supply | Native doel voor passieve-koelmengklep 1, indien beschikbaar. Softwarebereik 5-30 graden C. Geen kamerthermostaatdoel.
+Smart Grid mode | Disabled: stuur geen Smart Grid-aanvragen. SG-Ready: voor een controller die zo is ingesteld. Power Limitation / Load-Up: voor een controller die die interpretatie gebruikt. Deze keuze configureert de fysieke pomp niet vanzelf.
+
+Heat Stop staat apart als B1.06 op het apparaat: buitentemperatuurgrens, softwarebereik -10 tot 40 graden C. Native curve/waterdoelen gebruiken hele graden. Grenzen zijn softwaregrenzen, geen fabrikantverklaring voor elk toestel. Alleen bruikbare registerwaarden worden aangeboden; wijzigingen worden teruggelezen.
+
+Sensorgroep | Wat kun je volgen?
+C1 Klimaat | Binnen/buiten: effectieve waarde en bron; native binnenvoeler; vocht en dauwpunt.
+C2 Verwarming | Aanvoer/retour, doelinstellingen, activiteit, modus/preset en resterende laadtijd.
+C3 SWW | Tanktemperaturen, activiteit/legionella, fysieke START/STOP, toestemming, modus/preset en resterende tijden.
+C4 Koeling | Gemelde koelactiviteit, watertemperatuurinstellingen en vochtbeveiliging.
+C5 Warmtepomp | Compressor, pompen, kleppen, bron-/koelmiddelmetingen en elektrische bijverwarming.
+C6 Energie | Gemeld elektrisch/thermisch vermogen, tellers en COP wanneer geldige gegevens bestaan.
+C7 Systeem | Hoofdbedrijf, andere actieve functies, alarmen, regelwaarschuwingen en uitleg.
+
+De normale polling is elke 30 seconden. Optionele apparatuur en geavanceerde diagnostiek kunnen uitgeschakeld of onbeschikbaar zijn. Ontbrekende systeemaanvoer/retour worden niet vervangen door andere meetpunten. De volledige namenlijst staat in SENSOR_NAMES.md in de ZIP.
+
+7. HERSTEL, OVERSTAP EN HULP
+
+Er zijn twee verschillende soorten herstel: de integratie herstelt haar eigen tijdelijke regelprogramma's; jouw EMHASS-automatisering herstelt de door haar bewust ingestelde tijdelijke boiler-START.
+
+KLOKKEN EN HERSTEL
+
+De eigen Excess Energy-presets hebben standaard 12 uur voor verwarming en 6 uur voor SWW. Low Mode voor SWW heeft standaard 24 uur. Nieuwe duurinstellingen zijn 1-168 uur, in hele uren. Expliciet opnieuw kiezen start de relevante klok opnieuw; polling en pauzes niet.
+
+Na een HA-herstart worden eigen tijdelijke overrides hersteld voordat nieuwe opdrachten doorgaan; laden wordt niet vanzelf hervat. Als de verbinding ontbreekt blijft herstel wachten. Een resterende tijd van 0 is geen bewijs van voltooid herstel. Herstel vereist een draaiend HA en verbinding met de pomp.
+
+EEN GESLAAGDE EMHASS-OPDRACHT BLIJFT HAAR EIGEN VERANTWOORDELIJKHEID
+Een geslaagde START 55 wordt niet door de integratie als een compleet EMHASS-laadprogramma gevolgd. Jouw boilerautomatisering bewaart dat in input_text.emhass_boiler_regelgeheugen en zet later START terug op 45. De nieuwe journalen beschermen alleen tegen onvoltooide of niet bevestigde temperatuurwijzigingen.
+
+DE OVERSTAP OP JOUW HA
+
+1. Bewaar een volledige HA-back-up en laat oude laadprogramma's herstellen. 2. Kies External Control / EMHASS en controleer de echte entiteitsnamen/statussen. 3. Pas ook je EMHASS-template/helpers aan. 4. Stop het oude schrijven en test verwarming, koeling en SWW afzonderlijk. 5. Activeer de omgezette automatiseringen, een onderdeel tegelijk.
+
+De drie geleverde automatiseringsbestanden zijn concepten met vervang_ namen. De aparte definities van verwarmingsvenster, klimaatmodus, zonafwachten, boilerplanaanvraag en prijsplan zijn nog niet gecontroleerd. Laat het aparte zonneoverschotvoorbeeld uit als jouw EMHASS-regeling eigenaar is. Dat geldt ook voor een tweede BMS-buitentemperatuurfeed.
+
+Wat zie je? | Wat betekent het?
+Schakelaar aan, pomp niet bezig | Toestemming is bevestigd. Thermia kan nog wachten op eigen vraag, prioriteit of opstartvertraging.
+Losse woninginstelling geweigerd | Controleer of de eigen ruimtethermostaat nog regelt, of herstel/Smart Grid actief is. De foutmelding noemt de blokkade.
+START/STOP geweigerd | Controleer de ingevoerde grens, Configure-maxima, START lager dan STOP, teruglezing en een eventueel actief SWW-preset/Boost.
+Onbeschikbare sensor | Ontbrekende meting, communicatieprobleem of niet ondersteunde apparatuur/register. Niet interpreteren als nul of uit.
+
+WAAR STAAT DE UITLEG?
+
+In HA: Instellingen > Apparaten en diensten > Thermia Genesis Modbus > apparaat > Sensors > C7.03 System - Control Logic. Open de details/attributen voor de bestaande Engelstalige uitleg met actuele instellingen. Deze blijft leesbaar zonder pompverbinding en stuurt geen opdrachten.
+
+Deze nieuwe handleiding staat als HANDLEIDING_NL.pdf en HANDLEIDING_NL.txt in de bijgewerkte ZIP. README.md bevat de uitgebreidere Engelstalige uitleg; SENSOR_NAMES.md bevat de namenlijst. De Nederlandse handleiding is gebaseerd op de code en de aangeleverde automatiseringen, niet op een praktijktest op jouw HA.
+
+8. EMHASS, ZONNE-INVAL EN TRAGE VLOER
+
+Nieuw in 0.1.21: een expliciete externe-besturingsstand. Zij voorkomt dat de eigen thermostaatregeling jouw EMHASS-opdrachten overneemt. Zij verandert niet het thermische model, de zonvoorspelling of de wachttijden in jouw automatiseringen.
+
+ZO KIES JE DE STAND
+
+Instellingen > Apparaten en diensten > Thermia Genesis Modbus > Configure. Op pagina 1: Control Ownership > External Control / EMHASS. Ga door naar pagina 2 en sla op. Bestaande installaties blijven op interne besturing tot je bewust verandert.
+
+In externe besturing | Wat blijft wel of niet werken?
+Eigen thermostaten/presets | Beide thermostaatentiteiten zijn onbeschikbaar; opdrachten worden ook via automatiseringen geweigerd. Hun unieke IDs blijven behouden. Uit zetten is dus niet nodig.
+Native bediening | A1-schakelaars, B1.07 woninginstelling en B2.06/B2.07 boilergrenzen blijven bruikbaar. SWW aan/uit schrijft alleen de toestemming, niet opnieuw START/STOP.
+Metingen en beveiliging | Sensoren, teruglezing, herstel van onvoltooide opdrachten en gekozen vochtbeveiliging blijven actief. Een gekozen buitenfeed blijft schrijven; wijs daarvoor een eigenaar aan.
+Overdracht | Lopende eigen tijdelijke programma's herstellen eerst hun opgeslagen instellingen. Bij onvoltooid herstel wordt de wissel geweigerd. Terug naar intern start niet vanzelf een thermostaat.
+Niet read-only | Externe besturing voert nog steeds jouw opdrachten uit. Zij verhindert niet dat een andere integratie of automatisering ook schrijft.
+
+ZON DOOR DE RAMEN EN NAWERKING
+
+De woning kan na stoppen van verwarming nog warmer worden door opgeslagen vloerwarmte en zonne-inval. Na stoppen van koeling kan de vloer nog warmte opnemen. Pompstilstand is daarom niet hetzelfde als een uitgewerkte vloer. Een actuele kamertemperatuur alleen beschrijft die voorgeschiedenis niet.
+
+WAT DEZE WIJZIGING OPLOST
+Een stijgende of dalende kamertemperatuur laat de integratie in externe besturing niet zelf tussen verwarming en koeling schakelen. EMHASS en jouw uitvoerende automatiseringen blijven daarvoor verantwoordelijk. Er worden geen nieuwe universele vertragingen of zon-drempels toegevoegd.
+
+Wat nog gecontroleerd moet worden: jouw verwarmingsvenster, zonafwachten, klimaatmodus en thermische leermetingen. Behoud apart planvraag, toestemming, werkelijk bedrijf en kamertemperatuur. Deze versie is geen bewijs dat de huidige zonne-inval-/inertieproblemen van de EMHASS-regeling opgelost zijn.
