@@ -53,7 +53,11 @@ class TimerSensorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(low._attr_entity_registry_enabled_default)
         self.assertTrue(low._attr_entity_registry_visible_default)
         for key in ("heating", "hot_water"):
-            self.assertIn("Excess Energy", timers[f"pump-id_{key}_excess_time_remaining"]._attr_name)
+            entity = timers[f"pump-id_{key}_excess_time_remaining"]
+            self.assertIn("Excess Energy", entity._attr_name)
+            self.assertNotIn("group", vars(entity))
+            self.assertEqual(entity._timer_group, key)
+            self.assertIsInstance(entity.native_value, (int, float))
 
     async def test_low_timer_updates_offline_and_unregisters_without_control_writes(self):
         entity = MODULES["sensor"].ThermiaLowTimeRemaining(self.coordinator)

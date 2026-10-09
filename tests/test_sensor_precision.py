@@ -8,6 +8,42 @@ from test_platforms import MODULES, Coordinator
 
 
 class SensorPrecisionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_text_register_states_have_no_numeric_metadata_or_control_writes(self):
+        coordinator = Coordinator()
+        keys = [
+            "smart_grid_status", "second_demand", "third_demand",
+            *(f"queued_demand_{index}" for index in range(1, 6)),
+        ]
+        coordinator.registers.update({key: 0 for key in keys})
+        coordinator.registers["smart_grid_status"] = 4
+        original_registers = deepcopy(coordinator.registers)
+        original_state = deepcopy(coordinator.engine.state)
+        entities = []
+        await MODULES["sensor"].async_setup_entry(
+            None, SimpleNamespace(runtime_data=coordinator), entities.extend
+        )
+        registered = {entity._attr_unique_id: entity for entity in entities}
+        for key in keys:
+            entity = registered[f"pump-id_{key}"]
+            with self.subTest(sensor=key):
+                for code in (0, 1, 2, 3, 4, 5, 6, 65535):
+                    coordinator.registers[key] = code
+                    self.assertIsInstance(entity.native_value, str)
+                    for attribute in (
+                        "_attr_suggested_display_precision", "_attr_native_unit_of_measurement",
+                        "_attr_device_class", "_attr_state_class",
+                    ):
+                        self.assertIsNone(getattr(entity, attribute, None))
+                coordinator.registers[key] = None
+                self.assertIsNone(entity.native_value)
+                self.assertFalse(entity.available)
+                coordinator.registers[key] = original_registers[key]
+        self.assertEqual(registered["pump-id_smart_grid_status"].native_value, "Normal")
+        self.assertEqual(coordinator.registers, original_registers)
+        self.assertEqual(coordinator.engine.state, original_state)
+        self.assertEqual(coordinator.commands, [])
+        self.assertEqual(coordinator.writes, [])
+
     async def test_room_and_tank_sensors_preserve_source_precision_and_register_defaults(
         self,
     ):
