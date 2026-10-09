@@ -1,0 +1,87 @@
+{
+  "title": "Thermia Genesis Modbus",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Your Thermia Heat Pump",
+        "description": "Enable Modbus TCP under Settings → BMS on the heat pump. This setup checks the connection without changing pump settings.",
+        "data": {
+          "host": "Heat Pump IP Address",
+          "port": "Modbus TCP Port",
+          "unit_id": "Modbus Unit ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not read the heat pump. Check its IP address and Modbus TCP settings."
+    },
+    "abort": {
+      "already_configured": "This heat pump is already configured.",
+      "legacy_entry_exists": "This heat pump still has a thermia_pv entry. Return its thermostats to Normal/Auto while connected, remove the old integration entry, then add Thermia Genesis Modbus. This prevents two integrations controlling the same pump."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sensors And Thermostat Limits",
+        "description": "Set the model label, sensor inputs, hot-water capability limits and room-temperature restart margin. The hot-water limits default to START 55°C and STOP 60°C for the controller used to develop this integration; check them for your model. Normal temperatures are on the thermostats; preset settings, timers and humidity protection are on the device page under Configuration. The hot-water Excess Energy restart gap is also on the device page, default 2°C. START is capped by the maximum configurable START, so these defaults use START 55°C and STOP 60°C with an effective 5°C gap. Continue for heating-curve points, supply limits and Smart Grid. {temperature_sources}",
+        "data": {
+          "control_mode": "Control Ownership",
+          "heat_pump_model": "Heat Pump Model",
+          "inside_sensor": "Preferred Inside Temperature Sensor",
+          "inside_humidity_sensor": "Optional Inside Humidity Sensor",
+          "outside_sensor": "Preferred Outside Temperature Sensor",
+          "max_start_temperature": "Hot Water — Maximum Configurable START",
+          "max_hot_water_temperature": "Hot Water — Maximum Configurable STOP",
+          "sensor_timeout": "Advanced — External Sensor Freshness Limit",
+          "hysteresis": "Advanced — Room-Temperature Restart Margin"
+        },
+        "data_description": {
+          "control_mode": "New entries start in External Control / EMHASS; existing entries retain their chosen mode. External control disables both integration thermostats and their presets, without switching native heating, cooling or hot water off. Active temporary programs must first restore their saved settings. Native switches and temperature numbers remain available; optional humidity protection and interrupted-write recovery still apply. Solar gains and slow floor response remain the responsibility of your external automations.",
+          "heat_pump_model": "Model shown under Device info, for example Calibra E Cool 8 400V BW. This label does not select a different register map or enable unsupported controls.",
+          "inside_sensor": "Use this sensor whenever it has a valid temperature. Otherwise use the measured Thermia room temperature, if available.",
+          "inside_humidity_sensor": "Optional humidity input for cooling protection. Choose the protection switch, separate Normal and Vacation humidity limits, and the shared dew-point margin on the device page under Configuration. Default limits are Normal 80% and Vacation 65%. Vacation always uses this sensor when selected. A missing, invalid or stale selected reading pauses cooling only while protection is active. With no sensor selected, the integration cannot monitor humidity; native cooling limits remain.",
+          "outside_sensor": "Use this sensor whenever valid and publish it to the Thermia BMS temperature input. Otherwise use the physical Thermia outside sensor.",
+          "max_start_temperature": "Highest hot-water START setting configurable on this controller, in whole degrees. Default 55°C matches the controller used to develop this integration; check and adjust it for your model. This is a hardware capability limit, not the Normal thermostat START target. During Excess Energy, START is the lower of this limit and 60°C minus the restart gap selected on the device page.",
+          "max_hot_water_temperature": "Highest hot-water STOP setting configurable on this controller, in whole degrees. Default 60°C matches the controller used to develop this integration; check and adjust it for your model. This is a hardware capability limit, not the Normal thermostat STOP target. Excess Energy uses STOP 60°C and requires this limit to permit it.",
+          "sensor_timeout": "Freshness limit for selected external temperature and humidity sensors. 0 accepts a valid Home Assistant state until it becomes unavailable or invalid. A positive value rejects readings older than this many seconds.",
+          "hysteresis": "Room-temperature margin before starting heating below its target or cooling above its target in Auto and temperature-controlled cooling presets. Default 0.3°C. This is separate from the hot-water restart gap."
+        }
+      },
+      "controls": {
+        "title": "Heating Curve, Supply Temperatures And Smart Grid",
+        "description": "Adjust supported heating-curve points, heating-water supply limits and the passive-cooling supply target. Limits shown are integration software limits; actual controller readings are preserved when unchanged. Match Smart Grid to the mode already configured on the heat pump. Everyday switches and preset settings are on the device page under Configuration. Saving unchanged slider values sends no new native temperature requests. {unavailable_controls} {native_setting_status}",
+        "data": {
+          "heat_curve_supply_1": "Heat Curve Point 1 (Warmest Outside)",
+          "heat_curve_supply_2": "Heat Curve Point 2",
+          "heat_curve_supply_3": "Heat Curve Point 3",
+          "heat_curve_supply_4": "Heat Curve Point 4",
+          "heat_curve_supply_5": "Heat Curve Point 5",
+          "heat_curve_supply_6": "Heat Curve Point 6",
+          "heat_curve_supply_7": "Heat Curve Point 7 (Coldest Outside)",
+          "min_supply_temperature": "Supply Line Minimum",
+          "max_supply_temperature": "Supply Line Maximum",
+          "passive_cooling_supply_target": "Desired Cooling Supply (Mixing Valve 1)",
+          "smart_grid_mode": "Heat Pump Power Control Mode"
+        },
+        "data_description": {
+          "heat_curve_supply_1": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "heat_curve_supply_2": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "heat_curve_supply_3": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "heat_curve_supply_4": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "heat_curve_supply_5": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "heat_curve_supply_6": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "heat_curve_supply_7": "Supply-water target at this native outside-temperature curve point. The points run from warmest to coldest outside conditions.",
+          "min_supply_temperature": "Lower limit for heating-water supply temperature. Must not exceed the upper limit.",
+          "max_supply_temperature": "Upper limit for heating-water supply temperature. Also limits Excess Energy heating.",
+          "passive_cooling_supply_target": "Native passive-cooling target for mixing valve 1, when supported. This may differ from the main cooling target in the Thermia app.",
+          "smart_grid_mode": "Match the mode already configured on the heat pump. SG-Ready allows a shared request during heating or hot-water Excess Energy. Other modes send no Smart Grid request. Saving this preference does not configure the heat pump’s own BMS mode."
+        }
+      }
+    },
+    "error": {
+      "cannot_apply": "Could not confirm the changes on the heat pump. Check the reported reason and the controller connection, then try again.",
+      "invalid_evening_range": "Low Mode START must be lower than Low Mode STOP, both within 30–60°C."
+    }
+  }
+}

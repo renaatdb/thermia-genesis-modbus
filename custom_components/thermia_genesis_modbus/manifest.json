@@ -1,13 +1,17 @@
 {
   "domain": "thermia_genesis_modbus",
   "name": "Thermia Genesis Modbus",
-  "after_dependencies": ["modbus"],
+  "after_dependencies": [
+    "modbus"
+  ],
   "codeowners": [],
   "config_flow": true,
   "documentation": "https://github.com/renaatdb/thermia-genesis-modbus",
   "issue_tracker": "https://github.com/renaatdb/thermia-genesis-modbus/issues",
   "integration_type": "device",
   "iot_class": "local_polling",
-  "requirements": ["modbus-connection>=4.8.1,<5"],
+  "requirements": [
+    "modbus-connection>=4.8.1,<5"
+  ],
   "version": "0.1.22"
 }
