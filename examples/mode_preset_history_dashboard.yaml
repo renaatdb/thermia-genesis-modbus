@@ -1,0 +1,15 @@
+# Optional native dashboard card. Replace all four example entity IDs with
+# your actual entities from the heat-pump device page.
+# This card only displays history; it sends no commands to the heat pump.
+type: history-graph
+title: Thermia Temperatures And Selections
+hours_to_show: 24
+entities:
+  - entity: climate.your_heating_cooling_thermostat
+    name: Heating/Cooling
+  - entity: climate.your_hot_water_thermostat
+    name: Hot Water
+  - entity: sensor.your_heating_cooling_mode_and_preset
+    name: Heating/Cooling Selection
+  - entity: sensor.your_hot_water_mode_and_preset
+    name: Hot Water Selection

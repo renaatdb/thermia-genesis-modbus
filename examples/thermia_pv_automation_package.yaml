@@ -1,0 +1,519 @@
+# Install as /config/packages/thermia_pv.yaml. See AUTOMATION_SETUP.md.
+# Confirm the new number entity ID in controller variables before enabling.
+input_select:
+  thermia_pv_owner:
+    name: Thermia PV automation owner
+    options:
+    - None
+    - Hot water
+    - Heating
+input_boolean:
+  thermia_pv_enabled:
+    name: Thermia PV automation enabled
+  thermia_pv_limit_saved:
+    name: Thermia PV heating limit saved
+  thermia_pv_water_paused:
+    name: Thermia PV hot water paused for heating
+  thermia_pv_water_done:
+    name: Thermia PV water completed this surplus
+  thermia_pv_heating_done:
+    name: Thermia PV heating completed this surplus
+input_number:
+  thermia_pv_saved_limit:
+    name: Thermia PV saved heating ceiling
+    min: 5
+    max: 35
+    step: 1
+    unit_of_measurement: °C
+  thermia_pv_applied_limit:
+    name: Thermia PV applied heating ceiling
+    min: 5
+    max: 35
+    step: 1
+    unit_of_measurement: °C
+template:
+- binary_sensor:
+  - name: Thermia PV water ready
+    unique_id: thermia_pv_water_ready
+    default_entity_id: binary_sensor.thermia_pv_water_ready
+    state: >-
+      {{ (is_number(states('sensor.net_grid_power')) and is_number(states('sensor.net_battery_power')) and is_number(states('sensor.stp10_0_3se_40_146_battery_soc_total'))
+      and 0 <= (states('sensor.stp10_0_3se_40_146_battery_soc_total') | float(-1)) <= 100 and state_attr('sensor.net_grid_power',
+      'unit_of_measurement') in ['W','kW'] and state_attr('sensor.net_battery_power', 'unit_of_measurement') in
+      ['W','kW']) and (states('sensor.stp10_0_3se_40_146_battery_soc_total') | float(0)) > 80 and ((states('sensor.net_grid_power')
+      | float(0)) * (1000 if state_attr('sensor.net_grid_power', 'unit_of_measurement') == 'kW' else 1)) >= 1500
+      and is_state('sun.sun','above_horizon') }}
+    delay_on: 00:05:00
+  - name: Thermia PV heating ready
+    unique_id: thermia_pv_heating_ready
+    default_entity_id: binary_sensor.thermia_pv_heating_ready
+    state: >-
+      {{ (is_number(states('sensor.net_grid_power')) and is_number(states('sensor.net_battery_power')) and is_number(states('sensor.stp10_0_3se_40_146_battery_soc_total'))
+      and 0 <= (states('sensor.stp10_0_3se_40_146_battery_soc_total') | float(-1)) <= 100 and state_attr('sensor.net_grid_power',
+      'unit_of_measurement') in ['W','kW'] and state_attr('sensor.net_battery_power', 'unit_of_measurement') in
+      ['W','kW']) and (states('sensor.stp10_0_3se_40_146_battery_soc_total') | float(0)) > 80 and ((states('sensor.net_grid_power')
+      | float(0)) * (1000 if state_attr('sensor.net_grid_power', 'unit_of_measurement') == 'kW' else 1)) >= 750
+      and is_state('sun.sun','above_horizon') }}
+    delay_on: 00:05:00
+  - name: Thermia PV grid stop
+    unique_id: thermia_pv_grid_stop
+    default_entity_id: binary_sensor.thermia_pv_grid_stop
+    state: >-
+      {{ (is_number(states('sensor.net_grid_power')) and is_number(states('sensor.net_battery_power')) and is_number(states('sensor.stp10_0_3se_40_146_battery_soc_total'))
+      and 0 <= (states('sensor.stp10_0_3se_40_146_battery_soc_total') | float(-1)) <= 100 and state_attr('sensor.net_grid_power',
+      'unit_of_measurement') in ['W','kW'] and state_attr('sensor.net_battery_power', 'unit_of_measurement') in
+      ['W','kW']) and ((states('sensor.net_grid_power') | float(0)) * (1000 if state_attr('sensor.net_grid_power',
+      'unit_of_measurement') == 'kW' else 1)) <= -200 }}
+    delay_on: 00:05:00
+  - name: Thermia PV battery stop
+    unique_id: thermia_pv_battery_stop
+    default_entity_id: binary_sensor.thermia_pv_battery_stop
+    state: >-
+      {{ (is_number(states('sensor.net_grid_power')) and is_number(states('sensor.net_battery_power')) and is_number(states('sensor.stp10_0_3se_40_146_battery_soc_total'))
+      and 0 <= (states('sensor.stp10_0_3se_40_146_battery_soc_total') | float(-1)) <= 100 and state_attr('sensor.net_grid_power',
+      'unit_of_measurement') in ['W','kW'] and state_attr('sensor.net_battery_power', 'unit_of_measurement') in
+      ['W','kW']) and ((states('sensor.net_battery_power') | float(0)) * (1000 if state_attr('sensor.net_battery_power',
+      'unit_of_measurement') == 'kW' else 1)) <= -200 }}
+    delay_on: 00:05:00
+  sensor:
+  - name: Thermia PV confirmed alarm mode
+    unique_id: thermia_pv_confirmed_alarm_mode
+    default_entity_id: sensor.thermia_pv_confirmed_alarm_mode
+    state: |-
+      {% set a = states.alarm_control_panel.hhome %}
+      {% if a is none or a.state in ['unknown','unavailable'] %}Unavailable
+      {% elif (now() - a.last_changed).total_seconds() < 300 %}Settling
+      {% elif a.state == 'armed_vacation' %}Vacation
+      {% elif a.state in ['disarmed','armed_home','armed_away'] %}Home
+      {% else %}Unsupported{% endif %}
+script:
+  thermia_pv_stop:
+    alias: Thermia PV stop and restore
+    mode: single
+    fields:
+      heating_entity:
+        required: true
+      water_entity:
+        required: true
+      limit_entity:
+        required: true
+    sequence:
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: >-
+            {{ is_state('input_select.thermia_pv_owner','Heating') }}
+        sequence:
+        - condition: template
+          value_template: >-
+            {{ has_value(heating_entity) }}
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: >-
+                {{ state_attr(heating_entity,'preset_mode') in ['Excess Energy', 'Excess Energy (Heating Only)'] }}
+            sequence:
+            - action: climate.set_preset_mode
+              target:
+                entity_id: >-
+                  {{ heating_entity }}
+              data:
+                preset_mode: Normal
+        - condition: template
+          value_template: >-
+            {{ state_attr(heating_entity,'preset_mode') not in ['Excess Energy', 'Excess Energy (Heating Only)'] }}
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: >-
+            {{ is_state('input_select.thermia_pv_owner','Hot water') }}
+        sequence:
+        - condition: template
+          value_template: >-
+            {{ has_value(water_entity) }}
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: >-
+                {{ not is_state(water_entity,'off') and state_attr(water_entity,'preset_mode') == 'Excess Energy'
+                }}
+            sequence:
+            - action: climate.set_preset_mode
+              target:
+                entity_id: >-
+                  {{ water_entity }}
+              data:
+                preset_mode: >-
+                  {{ 'Low Mode' if is_state('sun.sun','below_horizon') else 'Normal' }}
+        - condition: template
+          value_template: >-
+            {{ is_state(water_entity,'off') or state_attr(water_entity,'preset_mode') != 'Excess Energy' }}
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: >-
+            {{ is_state('input_boolean.thermia_pv_limit_saved','on') }}
+        sequence:
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: >-
+                {{ has_value(limit_entity) }}
+            sequence:
+            - choose:
+              - conditions:
+                - condition: template
+                  value_template: >-
+                    {{ (states(limit_entity)|float) == (states('input_number.thermia_pv_applied_limit')|float) }}
+                sequence:
+                - action: number.set_value
+                  target:
+                    entity_id: >-
+                      {{ limit_entity }}
+                  data:
+                    value: >-
+                      {{ states('input_number.thermia_pv_saved_limit')|float|round(0, 'floor') }}
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.thermia_pv_limit_saved
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: >-
+            {{ is_state('input_boolean.thermia_pv_water_paused','on') }}
+        sequence:
+        - choose:
+          - conditions:
+            - condition: template
+              value_template: >-
+                {{ has_value(water_entity) }}
+            sequence:
+            - choose:
+              - conditions:
+                - condition: template
+                  value_template: >-
+                    {{ is_state(water_entity,'off') }}
+                sequence:
+                - action: climate.set_hvac_mode
+                  target:
+                    entity_id: >-
+                      {{ water_entity }}
+                  data:
+                    hvac_mode: auto
+                - action: climate.set_preset_mode
+                  target:
+                    entity_id: >-
+                      {{ water_entity }}
+                  data:
+                    preset_mode: >-
+                      {{ 'Low Mode' if is_state('sun.sun','below_horizon') else 'Normal' }}
+            - action: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.thermia_pv_water_paused
+    - condition: template
+      value_template: >-
+        {{ is_state('input_boolean.thermia_pv_limit_saved','off') and is_state('input_boolean.thermia_pv_water_paused','off')
+        }}
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.thermia_pv_owner
+      data:
+        option: None
+automation:
+- id: thermia_pv_priority_controller
+  alias: Thermia — sunset and PV surplus controller
+  mode: queued
+  max: 10
+  triggers:
+  - trigger: time_pattern
+    seconds: /30
+    id: poll
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: sun
+    event: sunset
+    id: sunset
+  - trigger: sun
+    event: sunset
+    offset: -02:00:00
+    id: pre_sunset
+  actions:
+  - variables:
+      heating_entity: climate.storage_room_calibra_eco_cool_8_400v_bw_heating_and_cooling
+      water_entity: climate.storage_room_calibra_eco_cool_8_400v_bw_hot_water
+      limit_entity: number.storage_room_calibra_eco_cool_8_400v_bw_heating_charge_temperature_limit
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ not is_state('input_boolean.thermia_pv_enabled','on') }}
+      sequence:
+      - &id001
+        action: script.thermia_pv_stop
+        data:
+          heating_entity: >-
+            {{ heating_entity }}
+          water_entity: >-
+            {{ water_entity }}
+          limit_entity: >-
+            {{ limit_entity }}
+      - stop: Automation disabled
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.id == 'sunset' }}
+      sequence:
+      - *id001
+      - condition: template
+        value_template: >-
+          {{ has_value(water_entity) and not is_state(water_entity,'off') }}
+      - action: climate.set_preset_mode
+        target:
+          entity_id: >-
+            {{ water_entity }}
+        data:
+          preset_mode: Low Mode
+      - stop: Low Mode schedule applied
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.id == 'pre_sunset' }}
+      sequence:
+      - condition: template
+        value_template: >-
+          {{ state_attr(water_entity,'preset_mode') == 'Low Mode' }}
+      - action: climate.set_preset_mode
+        target:
+          entity_id: >-
+            {{ water_entity }}
+        data:
+          preset_mode: Normal
+      - stop: Daytime schedule applied
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ is_state('binary_sensor.thermia_pv_water_ready','off') }}
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.thermia_pv_water_done
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ is_state('binary_sensor.thermia_pv_heating_ready','off') }}
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.thermia_pv_heating_done
+  - variables:
+      alarm_mode: >-
+        {{ states('sensor.thermia_pv_confirmed_alarm_mode') }}
+      charge_limit: >-
+        {% set t = state_attr(heating_entity, 'normal_target_temperature_low') if is_state(heating_entity,'heat_cool') else state_attr(heating_entity,'normal_target_temperature')
+        %}{{ [35, [5, ((t|float(0)) | round(0, 'floor') + (5 if is_state('sensor.thermia_pv_confirmed_alarm_mode','Vacation')
+        else 2))] | max] | min }}
+      water_ceiling: >-
+        {% set t = [state_attr(water_entity,'hot_water_top_temperature'),state_attr(water_entity,'hot_water_weighted_temperature')]
+        | select('number') | list %}{{ t|max if t else none }}
+      inside: >-
+        {{ state_attr(heating_entity,'current_temperature') }}
+  - variables:
+      water_full: >-
+        {{ water_ceiling is number and water_ceiling >= 60 }}
+      heat_full: >-
+        {{ inside is number and inside >= (charge_limit|float) }}
+      water_candidate: >-
+        {{ is_state('binary_sensor.thermia_pv_water_ready','on') and is_state('input_boolean.thermia_pv_water_done','off')
+        and has_value(water_entity) and (not is_state(water_entity,'off') or is_state('input_boolean.thermia_pv_water_paused','on'))
+        and water_ceiling is number and water_ceiling < 60 }}
+      heat_candidate: >-
+        {{ is_state('binary_sensor.thermia_pv_heating_ready','on') and is_state('input_boolean.thermia_pv_heating_done','off')
+        and states(heating_entity) in ['heat','heat_cool'] and inside is number and inside < (charge_limit|float)
+        and has_value(limit_entity) and has_value(water_entity) and (state_attr(heating_entity,'normal_target_temperature_low')
+        if is_state(heating_entity,'heat_cool') else state_attr(heating_entity,'normal_target_temperature')) is
+        number }}
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ is_state('input_select.thermia_pv_owner','Hot water') and (water_full or (has_value(water_entity) and
+          state_attr(water_entity,'preset_mode') != 'Excess Energy')) }}
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.thermia_pv_water_done
+      - *id001
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ is_state('input_select.thermia_pv_owner','Heating') and (heat_full or (has_value(heating_entity) and
+          state_attr(heating_entity,'preset_mode') not in ['Excess Energy', 'Excess Energy (Heating Only)'])) }}
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.thermia_pv_heating_done
+      - *id001
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ not (is_number(states('sensor.net_grid_power')) and is_number(states('sensor.net_battery_power')) and
+          is_number(states('sensor.stp10_0_3se_40_146_battery_soc_total')) and 0 <= (states('sensor.stp10_0_3se_40_146_battery_soc_total')
+          | float(-1)) <= 100 and state_attr('sensor.net_grid_power', 'unit_of_measurement') in ['W','kW'] and state_attr('sensor.net_battery_power',
+          'unit_of_measurement') in ['W','kW']) or not is_state('input_boolean.thermia_pv_enabled','on') or not
+          is_state('sun.sun','above_horizon') or is_state('binary_sensor.thermia_pv_grid_stop','on') or is_state('binary_sensor.thermia_pv_battery_stop','on')
+          or alarm_mode in ['Unavailable','Unsupported'] }}
+      sequence:
+      - *id001
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: >-
+              {{ is_state('sun.sun','below_horizon') and has_value(water_entity) and not is_state(water_entity,'off')
+              and state_attr(water_entity,'preset_mode') == 'Normal' }}
+          sequence:
+          - action: climate.set_preset_mode
+            target:
+              entity_id: >-
+                {{ water_entity }}
+            data:
+              preset_mode: Low Mode
+      - stop: Charging blocked or stopped
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ (is_state('input_select.thermia_pv_owner','Heating') and state_attr(water_entity,'preset_mode') ==
+          'Excess Energy') or (is_state('input_select.thermia_pv_owner','Hot water') and state_attr(heating_entity,'preset_mode')
+          in ['Excess Energy', 'Excess Energy (Heating Only)']) }}
+      sequence:
+      - *id001
+      - stop: Manual charge takes precedence
+  - condition: template
+    value_template: >-
+      {{ alarm_mode in ['Home','Vacation'] }}
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ (alarm_mode == 'Home' and is_state('input_select.thermia_pv_owner','Heating') and water_candidate)
+          or (alarm_mode == 'Vacation' and is_state('input_select.thermia_pv_owner','Hot water') and heat_candidate)
+          }}
+      sequence:
+      - *id001
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ is_state('input_select.thermia_pv_owner','Heating') and (charge_limit|float) != (states('input_number.thermia_pv_applied_limit')|float)
+          }}
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.thermia_pv_applied_limit
+        data:
+          value: >-
+            {{ charge_limit }}
+      - action: number.set_value
+        target:
+          entity_id: >-
+            {{ limit_entity }}
+        data:
+          value: >-
+            {{ charge_limit }}
+  - condition: template
+    value_template: >-
+      {{ is_state('input_select.thermia_pv_owner','None') }}
+  - condition: template
+    value_template: >-
+      {{ not is_state('input_boolean.thermia_pv_limit_saved','on') and not is_state('input_boolean.thermia_pv_water_paused','on')
+      }}
+  - condition: template
+    value_template: >-
+      {{ state_attr(heating_entity,'preset_mode') not in ['Excess Energy', 'Excess Energy (Heating Only)'] and state_attr(water_entity,'preset_mode')
+      != 'Excess Energy' }}
+  - variables:
+      desired: >-
+        {{ 'Hot water' if water_candidate and is_state('input_boolean.thermia_pv_water_done','off') and (alarm_mode
+        == 'Home' or not heat_candidate) else ('Heating' if heat_candidate and is_state('input_boolean.thermia_pv_heating_done','off')
+        else 'None') }}
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ desired == 'Hot water' }}
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.thermia_pv_owner
+        data:
+          option: Hot water
+      - action: climate.set_preset_mode
+        target:
+          entity_id: >-
+            {{ water_entity }}
+        data:
+          preset_mode: Excess Energy
+    - conditions:
+      - condition: template
+        value_template: >-
+          {{ desired == 'Heating' }}
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.thermia_pv_saved_limit
+        data:
+          value: >-
+            {{ states(limit_entity)|float|round(0, 'floor') }}
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.thermia_pv_applied_limit
+        data:
+          value: >-
+            {{ charge_limit }}
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.thermia_pv_limit_saved
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.thermia_pv_owner
+        data:
+          option: Heating
+      - action: number.set_value
+        target:
+          entity_id: >-
+            {{ limit_entity }}
+        data:
+          value: >-
+            {{ charge_limit }}
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: >-
+              {{ not is_state(water_entity,'off') }}
+          sequence:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.thermia_pv_water_paused
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: >-
+                {{ water_entity }}
+            data:
+              hvac_mode: 'off'
+      - condition: template
+        value_template: >-
+          {{ is_state(water_entity,'off') }}
+      - action: climate.set_preset_mode
+        target:
+          entity_id: >-
+            {{ heating_entity }}
+        data:
+          preset_mode: >-
+            {{ 'Excess Energy (Heating Only)' if is_state(heating_entity,'heat_cool') else 'Excess Energy' }}
