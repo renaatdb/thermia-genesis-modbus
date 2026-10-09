@@ -1,16 +1,16 @@
 # Thermia Genesis Modbus — local Home Assistant integration
 
-Installable **beta 0.1.22**, designed for a Thermia Calibra E Cool 8 400V BW with Genesis firmware 17.01. Requires **Home Assistant Core 2026.9.0 or newer**; Core 2026.9.4 meets this requirement. The register catalogue follows Thermia’s domestic Genesis 17.1 protocol. Automated checks use simulated devices and Home Assistant API stand-ins, with additional source-contract checks against Core 2026.9.4. This release has not been tested on your physical heat pump or a running Home Assistant instance.
+Installable **beta 0.1.23**, designed for a Thermia Calibra E Cool 8 400V BW with Genesis firmware 17.01. Requires **Home Assistant Core 2026.9.0 or newer**; Core 2026.9.4 meets this requirement. The register catalogue follows Thermia’s domestic Genesis 17.1 protocol. Automated checks use simulated devices and Home Assistant API stand-ins, with additional source-contract checks against Core 2026.9.4. Form validation and serialization have also been checked locally with Probatio 0.13.0 and the relevant Core 2026.10 selector classes. The 0.1.23 fixes have not yet been validated on a physical heat pump or running Home Assistant instance.
 
 ## Dutch user manual
 
 See [HANDLEIDING_NL.pdf](HANDLEIDING_NL.pdf) for the eight-page Dutch control reference, or [HANDLEIDING_NL.txt](HANDLEIDING_NL.txt) for the plain-text edition. It covers switches, thermostats, presets, temperature controls, sensor groups, recovery, external ownership, solar gains and staged EMHASS migration. The manual does not replace validation on the actual pump.
 
-The bundled manual describes 0.1.21 and remains applicable to the controls in 0.1.22. The new installation default in 0.1.22 is explained in [INSTALLATIE_NL.txt](INSTALLATIE_NL.txt): newly created entries already use External Control / EMHASS; existing entries retain their chosen mode.
+The bundled manual describes 0.1.21 and remains applicable to the controls in 0.1.23. The installation default introduced in 0.1.22 is explained in [INSTALLATIE_NL.txt](INSTALLATIE_NL.txt): newly created entries already use External Control / EMHASS; existing entries retain their chosen mode.
 
 ## Install or update on Home Assistant OS
 
-1. Download and extract `thermia-genesis-modbus-0.1.22.zip`.
+1. Download and extract `thermia-genesis-modbus-0.1.23.zip`.
 2. Use Studio Code Server, Samba or your existing configuration-folder access to copy **`custom_components/thermia_genesis_modbus`** into Home Assistant’s **`/config/custom_components/`**, replacing that folder when updating from 0.1.5 or newer. See the one-time migration below for older versions.
 3. Check that `/config/custom_components/thermia_genesis_modbus/manifest.json` exists, without an extra nested folder.
 4. Restart **Home Assistant Core**.
@@ -20,6 +20,13 @@ The bundled manual describes 0.1.21 and remains applicable to the controls in 0.
 On the pump, enable Modbus TCP/IP under **Settings → BMS** and connect it to an accessible local network. No separate Modbus YAML hub is needed. Home Assistant pools matching Modbus connections. Avoid overlapping automations that issue competing heat-pump settings.
 
 The public repository is [renaatdb/thermia-genesis-modbus](https://github.com/renaatdb/thermia-genesis-modbus). Test releases are listed under [Releases](https://github.com/renaatdb/thermia-genesis-modbus/releases). For HACS, add this URL as a custom repository of type **Integration**; prereleases may require enabling beta versions. This project is not included in the default HACS catalogue. Installing either reference repository installs that project's integration. Publishing or downloading does not install anything on Home Assistant or migrate existing automations.
+
+## Changes in 0.1.23
+
+- Fixed text-valued status sensors, including **C6.18 Energy - Current Smart Grid Mode**: labels such as `Normal` no longer carry numeric display precision. Queued-demand status labels receive the same correction; genuinely numeric registers retain their precision.
+- Removed the timer sensors' conflicting public `group` attribute by using a private name. This addresses the Home Assistant warning about incompatibility with Core 2027.2.
+- Added regression coverage for text status metadata, unavailable values and timer identity. Register addresses, unique IDs, permissions, control ownership, recovery behavior and EMHASS automations are unchanged.
+- This is not a fix for the separate EMHASS heating-window template error or for solar gains and slow floor response. The configuration dialog was subsequently observed opening on the existing 0.1.22 installation; no speculative config-flow change is included.
 
 ## Changes in 0.1.22
 

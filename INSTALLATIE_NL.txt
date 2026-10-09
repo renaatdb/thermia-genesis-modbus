@@ -1,4 +1,4 @@
-THERMIA GENESIS MODBUS - INSTALLATIE 0.1.22
+THERMIA GENESIS MODBUS - INSTALLATIE 0.1.23
 
 De aangepaste plugin vervangt alleen de bestanden in:
 /config/custom_components/thermia_genesis_modbus/
@@ -11,7 +11,7 @@ Bewaar eerst een volledige HA-back-up en een kopie van de oude pluginbestanden.
 Laat thermia, thermiagenesis en thermia_calibra voorlopig ongemoeid.
 
 NIEUWE CONFIGURATIE
-Een nieuwe integratievermelding begint in 0.1.22 automatisch op:
+Een nieuwe integratievermelding begint sinds 0.1.22 automatisch op:
 Control Ownership > External Control / EMHASS.
 De verbindingscontrole leest alleen de bedrijfsstatus. Er wordt geen eigen
 thermostaatprogramma gestart. De twee eigen thermostaten zijn in deze stand
@@ -34,7 +34,13 @@ tegenstrijdige opdrachten van de oude en nieuwe regeling.
 Pas dan automatiseringen EN helpers onderdeel voor onderdeel omzetten.
 De oudere conceptbestanden met vervang_-namen zijn niet klaar voor activering.
 
-De handleiding van 0.1.21 blijft geldig voor de functies. De enige nieuwe
-functionele wijziging in 0.1.22 is de externe standaard bij een nieuwe vermelding.
+HERSTEL IN 0.1.23
+De Smart Grid-status en andere tekststatussen worden niet meer als getal
+aangemerkt. De resterende-tijdsensoren gebruiken niet meer de conflicterende
+naam group. Registeradressen, bestaande unique IDs en sturingslogica blijven gelijk.
+De aparte EMHASS-rekenfout wordt niet door deze update hersteld.
+
+De handleiding van 0.1.21 blijft geldig voor de functies. De externe standaard
+bij een nieuwe vermelding is sinds 0.1.22 ongewijzigd.
 Deze release lost zonne-inval of thermische nawerking niet vanzelf op.
-Er is nog geen praktijktest op jouw HA of warmtepomp uitgevoerd.
+De herstellingen van 0.1.23 zijn lokaal getest, nog niet op jouw HA of warmtepomp.
