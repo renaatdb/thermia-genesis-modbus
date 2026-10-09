@@ -143,12 +143,18 @@ class ThermiaRegisterSensor(ThermiaEntity, SensorEntity):
     def __init__(self, coordinator, spec) -> None:
         super().__init__(coordinator, spec.key, sensor_name(spec.key))
         self.spec = spec
-        self._attr_native_unit_of_measurement = spec.unit
+        text_status = spec.key in ("smart_grid_status", "second_demand", "third_demand") or (
+            spec.key.startswith("queued_demand_")
+        )
+        self._attr_native_unit_of_measurement = None if text_status else spec.unit
         self._attr_entity_registry_enabled_default = spec.enabled
         if spec.diagnostic:
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
-        self._attr_suggested_display_precision = 2 if spec.scale < 1 else 0
-        if spec.kind == "number":
+        # A display precision makes HA treat even unitless status labels as numeric.
+        self._attr_suggested_display_precision = (
+            None if text_status else (2 if spec.scale < 1 else 0)
+        )
+        if spec.kind == "number" and not text_status:
             self._attr_device_class = {
                 "°C": SensorDeviceClass.TEMPERATURE,
                 "K": SensorDeviceClass.TEMPERATURE_DELTA,
@@ -287,10 +293,10 @@ class ThermiaExcessTimeRemaining(_ThermiaTimeRemaining):
             key,
             sensor_name(key),
         )
-        self.group = group
+        self._timer_group = group
 
     def _time_info(self):
-        return excess_time_info(self.coordinator, self.group)
+        return excess_time_info(self.coordinator, self._timer_group)
 
 
 class ThermiaLowTimeRemaining(_ThermiaTimeRemaining):
